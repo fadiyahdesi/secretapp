@@ -35,6 +35,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   get: ^4.7.2
+  camera: ^0.10.0+4
+  permission_handler: ^11.0.0
 
 dev_dependencies:
   flutter_test:
@@ -60,7 +62,11 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/splash.png
+    - assets/images/splashscreen/splash.png
+    - assets/images/splashscreen/splash2.png
+    - assets/images/splashscreen/splash3.png
+    - assets/images/splashscreen/splash4.png
+    - assets/images/splashscreen/splash5.png
     - assets/images/hero1.png
     - assets/images/hero2.png
     - assets/images/iconuser.png
@@ -69,6 +75,27 @@ flutter:
     - assets/images/home3.png
     - assets/images/home4.png
     - assets/images/iconfitur.png
+    - assets/images/f3.peoplespeak/2.png
+    - assets/images/f3.peoplespeak/3.png
+    - assets/images/f3.peoplespeak/4.png
+    - assets/images/f3.peoplespeak/5.png
+    - assets/images/f3.peoplespeak/6.png
+    - assets/images/f3.peoplespeak/2kata.png
+    - assets/images/f3.peoplespeak/3kata.png
+    - assets/images/f3.peoplespeak/4kata.png
+    - assets/images/f3.peoplespeak/5kata.png
+    - assets/images/f3.peoplespeak/6kata.png
+    - assets/images/f3.peoplespeak/c_2kata.png
+    - assets/images/f3.peoplespeak/c_3kata.png
+    - assets/images/f3.peoplespeak/c_4kata.png
+    - assets/images/f3.peoplespeak/c_5kata.png
+    - assets/images/f3.peoplespeak/c_6kata.png
+    - assets/images/f2.cariobjek/1.png
+    - assets/images/f2.cariobjek/2.png
+    - assets/images/f2.cariobjek/3.png
+    - assets/images/f2.cariobjek/4.png
+    - assets/images/f2.cariobjek/5.png
+    - assets/images/f2.cariobjek/6.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

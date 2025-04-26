@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      title: "Aplikasi Login",
+      title: "Bicaraku",
       initialRoute: AppPages.INITIAL,
       getPages: AppPages.routes,
     );

@@ -11,17 +11,23 @@ class HomeView extends StatelessWidget {
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFFFFBF8C),
         type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        selectedItemColor: Colors.black, // <-- Warna ikon aktif (terpilih)
-        unselectedItemColor: Colors.black, // <-- Warna ikon tidak aktif
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.black,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.remove_red_eye), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.visibility),
+            label: 'Melihat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.travel_explore),
+            label: 'Temukan',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.record_voice_over),
-            label: '',
+            label: 'Berbicara',
           ),
         ],
         currentIndex: 2,
@@ -34,10 +40,10 @@ class HomeView extends StatelessWidget {
               Get.toNamed(Routes.LOOKNHEAR);
               break;
             case 2:
-              Get.toNamed('/search');
+              Get.toNamed(Routes.CARIOBJEK);
               break;
             case 3:
-              Get.toNamed('/people-speak');
+              Get.toNamed(Routes.PEOPLESPEAK);
               break;
           }
         },
@@ -52,10 +58,13 @@ class HomeView extends StatelessWidget {
                 children: [
                   const Text(
                     'Halo, Desi!',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w300),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings),
+                    icon: const Icon(
+                      Icons.settings,
+                      color: Colors.purpleAccent,
+                    ),
                     onPressed: () {
                       // Navigasi ke halaman setting profil
                       Get.toNamed('/profil');
@@ -73,8 +82,8 @@ class HomeView extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Image.asset('assets/images/iconuser.png', width: 200),
-                    const SizedBox(width: 80),
+                    Image.asset('assets/images/iconuser.png', width: 150),
+                    const SizedBox(width: 20),
                     const Expanded(
                       child: Text(
                         'Lihat, Dengar, Ucapkan – Belajar Bicara Jadi Lebih Mudah!',

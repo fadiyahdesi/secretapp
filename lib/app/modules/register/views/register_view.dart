@@ -68,7 +68,7 @@ class RegisterView extends GetView<RegisterController> {
                     onTap: () => Get.toNamed(Routes.LOGIN),
                     child: const Text(
                       "Masuk disini!",
-                      style: TextStyle(color: Colors.black54),
+                      style: TextStyle(color: Colors.purple),
                     ),
                   ),
 

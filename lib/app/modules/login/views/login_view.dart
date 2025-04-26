@@ -15,10 +15,7 @@ class LoginView extends GetView<LoginController> {
           child: Column(
             children: [
               const SizedBox(height: 40),
-              Image.asset(
-                'assets/images/hero1.png', // simpan file gambar di assets/images
-                height: 200,
-              ),
+              Image.asset('assets/images/hero1.png', height: 200),
               const SizedBox(height: 20),
               const Text(
                 'Masuk',
@@ -53,7 +50,7 @@ class LoginView extends GetView<LoginController> {
                     onTap: () => Get.toNamed(Routes.REGISTER),
                     child: const Text(
                       "Daftar disini!",
-                      style: TextStyle(color: Colors.black54),
+                      style: TextStyle(color: Colors.purple),
                     ),
                   ),
 
@@ -80,7 +77,7 @@ class LoginView extends GetView<LoginController> {
                   child: const Text(
                     "Masuk",
                     style: TextStyle(
-                      color: Colors.black,
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
