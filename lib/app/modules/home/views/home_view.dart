@@ -82,8 +82,8 @@ class HomeView extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Image.asset('assets/images/iconuser.png', width: 150),
-                    const SizedBox(width: 20),
+                    Image.asset('assets/images/iconuser.png', width: 170),
+                    const SizedBox(width: 60),
                     const Expanded(
                       child: Text(
                         'Lihat, Dengar, Ucapkan – Belajar Bicara Jadi Lebih Mudah!',
