@@ -47,14 +47,24 @@ class RegisterView extends GetView<RegisterController> {
               ),
               const SizedBox(height: 16),
 
-              // Password
-              TextField(
-                controller: controller.passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Kata sandi",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+              // Password with eye toggle
+              Obx(
+                () => TextField(
+                  controller: controller.passwordController,
+                  obscureText: controller.obscurePassword.value,
+                  decoration: InputDecoration(
+                    labelText: "Kata sandi",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        controller.obscurePassword.value
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: controller.togglePasswordVisibility,
+                    ),
                   ),
                 ),
               ),
@@ -71,7 +81,6 @@ class RegisterView extends GetView<RegisterController> {
                       style: TextStyle(color: Colors.purple),
                     ),
                   ),
-
                   SizedBox(
                     height: 45,
                     child: ElevatedButton(

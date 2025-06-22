@@ -1,28 +1,116 @@
+import 'package:bicaraku/app/data/models/user_model.dart';
+import 'package:bicaraku/app/data/repositories/auth_repository.dart';
 import 'package:bicaraku/app/routes/app_routes.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:bicaraku/app/data/controllers/user_controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginController extends GetxController {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final UserController userController = Get.find<UserController>();
+  final AuthRepository authRepo = Get.find<AuthRepository>();
+  final box = GetStorage();
 
-  void login() {
-    final email = emailController.text;
-    final password = passwordController.text;
+  var obscurePassword = true.obs;
+  var isLoading = false.obs;
 
-    // Lakukan validasi/login di sini
+  Future<void> login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
     if (email.isEmpty || password.isEmpty) {
       Get.snackbar("Error", "Email dan password harus diisi");
-    } else {
-      Get.snackbar("Berhasil", "Selamat datang $email");
-      Get.offAllNamed(Routes.HOME);
+      return;
+    }
+
+    isLoading(true);
+    try {
+      final response = await authRepo.login(email, password);
+
+      if (response['status'] == 'success') {
+        await box.write('token', response['token']);
+
+        userController.setUser(
+          UserModel(
+            id: response['user']['_id']?.toString() ?? '',
+            name: response['user']['name'] ?? '',
+            email: response['user']['email'] ?? '',
+            provider: response['user']['provider'] ?? 'email',
+            photoUrl: response['user']['photoUrl'] ?? '',
+            lastLogin:
+                response['user']['lastLogin'] ?? DateTime.now().toString(),
+          ),
+        );
+
+        Get.offAllNamed(Routes.HOME);
+      } else {
+        Get.snackbar("Error", response['message'] ?? 'Login gagal');
+      }
+    } catch (e) {
+      Get.snackbar("Error", e.toString().replaceAll('Exception:', '').trim());
+    } finally {
+      isLoading(false);
     }
   }
 
-  @override
-  void onClose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.onClose();
+  Future<void> loginWithGoogle() async {
+    isLoading(true);
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email'],
+        signInOption: SignInOption.standard,
+      );
+
+      await googleSignIn.signOut(); // untuk memastikan dialog muncul
+      final googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        Get.snackbar("Login Dibatalkan", "Pengguna membatalkan login Google.");
+        return;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
+      );
+      final firebaseIdToken = await userCredential.user!.getIdToken();
+      print('🔥 FIREBASE_ID_TOKEN: $firebaseIdToken');
+
+      final response = await authRepo.loginWithGoogle(firebaseIdToken!);
+
+      if (response['status'] == 'success') {
+        await box.write('token', response['token']);
+
+        userController.setUser(
+          UserModel(
+            id: response['user']['_id']?.toString() ?? '',
+            name: response['user']['name'] ?? googleUser.displayName ?? 'User',
+            email: response['user']['email'] ?? googleUser.email,
+            provider: response['user']['provider'] ?? 'google',
+            photoUrl: response['user']['photoUrl'] ?? googleUser.photoUrl ?? '',
+            lastLogin:
+                response['user']['lastLogin'] ?? DateTime.now().toString(),
+          ),
+        );
+
+        Get.offAllNamed(Routes.HOME);
+      } else {
+        Get.snackbar("Error", response['message'] ?? 'Google login failed');
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Terjadi kesalahan: ${e.toString()}");
+      print('Google Sign-In Error: $e');
+    } finally {
+      isLoading(false);
+    }
   }
 }

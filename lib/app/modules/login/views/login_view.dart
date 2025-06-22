@@ -32,13 +32,25 @@ class LoginView extends GetView<LoginController> {
                 ),
               ),
               const SizedBox(height: 20),
-              TextField(
-                controller: controller.passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Kata sandi',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+              Obx(
+                () => TextField(
+                  controller: controller.passwordController,
+                  obscureText: controller.obscurePassword.value,
+                  decoration: InputDecoration(
+                    labelText: 'Kata sandi',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        controller.obscurePassword.value
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        controller.obscurePassword.toggle();
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -53,11 +65,8 @@ class LoginView extends GetView<LoginController> {
                       style: TextStyle(color: Colors.purple),
                     ),
                   ),
-
                   GestureDetector(
-                    onTap: () {
-                      // Arahkan ke halaman lupa sandi
-                    },
+                    onTap: () => Get.toNamed(Routes.RESET_PASSWORD),
                     child: const Text("Lupa kata sandi?"),
                   ),
                 ],
@@ -80,6 +89,37 @@ class LoginView extends GetView<LoginController> {
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text("Atau"),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 45,
+                child: ElevatedButton(
+                  onPressed: controller.loginWithGoogle,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Colors.grey),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset('assets/images/google.png', height: 24),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Masuk dengan Google",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

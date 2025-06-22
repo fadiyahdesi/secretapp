@@ -16,6 +16,10 @@ abstract class Routes {
   static const CARIOBJEK = _Paths.CARIOBJEK;
   static const CARIOBJEKCAM = _Paths.CARIOBJEKCAM;
   static const PEOPLESPEAK = _Paths.PEOPLESPEAK;
+  static const SCRAPING = _Paths.SCRAPING;
+  static const HISTORY = _Paths.HISTORY;
+  static const RESET_PASSWORD = _Paths.RESET_PASSWORD;
+  static const HISTORY_ACTIVITY = _Paths.HISTORY_ACTIVITY;
 }
 
 abstract class _Paths {
@@ -33,4 +37,8 @@ abstract class _Paths {
   static const CARIOBJEK = '/cariobjek';
   static const CARIOBJEKCAM = '/cariobjekcam';
   static const PEOPLESPEAK = '/peoplespeak';
+  static const SCRAPING = '/scraping';
+  static const HISTORY = '/history';
+  static const RESET_PASSWORD = '/reset-password';
+  static const HISTORY_ACTIVITY = '/history-activity';
 }

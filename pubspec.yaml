@@ -2,7 +2,7 @@ name: bicaraku
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -34,9 +34,29 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  dio: ^5.8.0+1
   get: ^4.7.2
   camera: ^0.10.0+4
   permission_handler: ^11.0.0
+  http: ^1.2.0
+  speech_to_text: ^7.0.0
+  flutter_tts: ^3.3.0
+  get_storage: ^2.1.1
+  flutter_secure_storage: ^8.0.0
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.8
+  google_sign_in: ^6.3.0
+  webview_flutter: ^4.4.3
+  url_launcher: ^6.2.5
+  fl_chart: ^0.63.0
+  word_cloud: ^1.0.3
+  charts_flutter_new: ^0.12.0
+  charts_flutter: ^0.12.0
+  image_picker: ^1.1.2
+  shared_preferences: ^2.5.3
+  intl: ^0.17.0
+  # flutterfire_ui:
 
 dev_dependencies:
   flutter_test:
@@ -49,13 +69,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
-
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -75,6 +93,7 @@ flutter:
     - assets/images/home3.png
     - assets/images/home4.png
     - assets/images/iconfitur.png
+    - assets/images/f3.peoplespeak/mobilmerah.png
     - assets/images/f3.peoplespeak/2.png
     - assets/images/f3.peoplespeak/3.png
     - assets/images/f3.peoplespeak/4.png
@@ -90,12 +109,22 @@ flutter:
     - assets/images/f3.peoplespeak/c_4kata.png
     - assets/images/f3.peoplespeak/c_5kata.png
     - assets/images/f3.peoplespeak/c_6kata.png
+    - assets/images/f3.peoplespeak/board.png
     - assets/images/f2.cariobjek/1.png
     - assets/images/f2.cariobjek/2.png
     - assets/images/f2.cariobjek/3.png
     - assets/images/f2.cariobjek/4.png
     - assets/images/f2.cariobjek/5.png
     - assets/images/f2.cariobjek/6.png
+    - assets/images/scraping.jpg
+    - assets/images/wrong.png
+    - assets/images/correct.png
+    - assets/images/google.png
+    - assets/images/crying.png
+    - assets/images/defaulthistory.png
+    - assets/images/emptyhistory.png
+    - assets/audio/wrong.wav
+    - assets/audio/correct.wav
 
   # To add assets to your application, add an assets section, like this:
   # assets:
