@@ -1,4 +1,9 @@
+import 'package:bicaraku/app/modules/f1_looknhear/bindings/looknhear_binding.dart';
 import 'package:bicaraku/app/modules/history_activity/controllers/history_activity_controller.dart';
+import 'package:bicaraku/app/modules/reset_password/bindings/create_password_binding.dart';
+import 'package:bicaraku/app/modules/reset_password/bindings/verify_code_binding.dart';
+import 'package:bicaraku/app/modules/reset_password/controllers/create_password_controller.dart';
+import 'package:bicaraku/app/modules/reset_password/views/verify_code_view.dart';
 import 'package:get/get.dart';
 import '../modules/f1_looknhear/views/looknhear_detect_view.dart';
 import '../modules/f1_looknhear/views/looknhear_view.dart';
@@ -53,8 +58,18 @@ class AppPages {
       page: () => ResetPasswordView(),
       binding: ResetPasswordBinding(),
     ),
-
-    GetPage(name: '/create-password', page: () => CreatePasswordView()),
+    GetPage(
+      name: Routes.VERIFY_CODE,
+      page: () => const VerifyCodeView(),
+      binding: VerifyCodeBinding(),
+    ),
+    GetPage(
+      name: Routes.CREATE_PASSWORD,
+      page: () => CreatePasswordView(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut(() => CreatePasswordController());
+      }),
+    ),
 
     // REGISTER
     GetPage(
@@ -80,7 +95,11 @@ class AppPages {
     ),
 
     // LOOKNHEAR
-    GetPage(name: '/looknhear', page: () => const LooknhearView()),
+    GetPage(
+      name: '/looknhear',
+      page: () => const LooknhearView(),
+      binding: CariobjekBinding(),
+    ),
     GetPage(name: '/looknhearcam', page: () => const LooknhearDetectView()),
 
     // CARIOBJEK

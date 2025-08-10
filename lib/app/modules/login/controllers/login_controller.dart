@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:bicaraku/app/data/models/user_model.dart';
 import 'package:bicaraku/app/data/repositories/auth_repository.dart';
 import 'package:bicaraku/app/routes/app_routes.dart';
@@ -18,6 +21,36 @@ class LoginController extends GetxController {
   var obscurePassword = true.obs;
   var isLoading = false.obs;
 
+  /// Helper private untuk mendapatkan informasi perangkat.
+  Future<Map<String, dynamic>> _getDeviceInfoMap() async {
+    final deviceInfoPlugin = DeviceInfoPlugin();
+    try {
+      if (kIsWeb) {
+        final info = await deviceInfoPlugin.webBrowserInfo;
+        return {'platform': 'Web', 'browser': info.browserName.name};
+      } else if (Platform.isAndroid) {
+        final info = await deviceInfoPlugin.androidInfo;
+        return {
+          'platform': 'Android',
+          'manufacturer': info.manufacturer,
+          'model': info.model,
+          'osVersion': 'Android ${info.version.release}',
+        };
+      } else if (Platform.isIOS) {
+        final info = await deviceInfoPlugin.iosInfo;
+        return {
+          'platform': 'iOS',
+          'name': info.name,
+          'model': info.model,
+          'osVersion': '${info.systemName} ${info.systemVersion}',
+        };
+      }
+    } catch (e) {
+      print("❌ ERROR GETTING DEVICE INFO: $e");
+    }
+    return {'platform': 'Unknown', 'model': 'Unknown Device'};
+  }
+
   Future<void> login() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
@@ -29,8 +62,13 @@ class LoginController extends GetxController {
 
     isLoading(true);
     try {
-      final response = await authRepo.login(email, password);
+      // 1. Ambil info perangkat (KODE BARU)
+      final deviceInfo = await _getDeviceInfoMap();
 
+      // 2. Kirim info perangkat bersama data login ke repository (KODE DIMODIFIKASI)
+      final response = await authRepo.login(email, password, deviceInfo);
+
+      // (Sisa kode Anda tidak diubah)
       if (response['status'] == 'success') {
         await box.write('token', response['token']);
 
@@ -60,6 +98,7 @@ class LoginController extends GetxController {
   Future<void> loginWithGoogle() async {
     isLoading(true);
     try {
+      // (Logika Firebase Anda tidak diubah)
       final GoogleSignIn googleSignIn = GoogleSignIn(
         scopes: ['email'],
         signInOption: SignInOption.standard,
@@ -70,6 +109,7 @@ class LoginController extends GetxController {
 
       if (googleUser == null) {
         Get.snackbar("Login Dibatalkan", "Pengguna membatalkan login Google.");
+        isLoading(false); // Pastikan loading berhenti
         return;
       }
 
@@ -85,8 +125,16 @@ class LoginController extends GetxController {
       final firebaseIdToken = await userCredential.user!.getIdToken();
       print('🔥 FIREBASE_ID_TOKEN: $firebaseIdToken');
 
-      final response = await authRepo.loginWithGoogle(firebaseIdToken!);
+      // 1. Ambil info perangkat (KODE BARU)
+      final deviceInfo = await _getDeviceInfoMap();
 
+      // 2. Kirim info perangkat bersama token ke repository (KODE DIMODIFIKASI)
+      final response = await authRepo.loginWithGoogle(
+        firebaseIdToken!,
+        deviceInfo,
+      );
+
+      // (Sisa kode Anda tidak diubah)
       if (response['status'] == 'success') {
         await box.write('token', response['token']);
 

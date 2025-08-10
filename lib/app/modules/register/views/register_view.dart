@@ -9,6 +9,7 @@ class RegisterView extends GetView<RegisterController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -78,7 +79,10 @@ class RegisterView extends GetView<RegisterController> {
                     onTap: () => Get.toNamed(Routes.LOGIN),
                     child: const Text(
                       "Masuk disini!",
-                      style: TextStyle(color: Colors.purple),
+                      style: TextStyle(
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   SizedBox(

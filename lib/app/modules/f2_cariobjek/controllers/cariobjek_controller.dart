@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:bicaraku/app/routes/app_routes.dart';
+import 'package:bicaraku/core/utils/pronunciation.dart';
+import 'package:bicaraku/core/utils/yuv_converter.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'package:bicaraku/core/network/api_constant.dart';
 import 'package:bicaraku/app/data/controllers/activity_controller.dart';
 import 'package:bicaraku/app/data/models/activity_history.dart';
+import 'package:bicaraku/core/utils/debouncer.dart';
 
 class CariObjekController extends GetxController {
   late CameraController cameraController;
@@ -23,75 +27,38 @@ class CariObjekController extends GetxController {
   var isListening = false.obs;
   var recognizedText = ''.obs;
   var isProcessingSpeech = false.obs;
+  var hasFoundObject = false.obs;
+  var isReady = false.obs;
 
-  Timer? _detectionTimer;
   Timer? _countdownTimer;
   final _speechQueue = <String>[].obs;
   late FlutterTts _tts;
   late stt.SpeechToText _speech;
+  final _throttler = Throttler(const Duration(milliseconds: 1500));
 
-  // Shared assets dan konfigurasi
+  // Shared assets
   final correctImage = 'assets/images/correct.png';
   final wrongImage = 'assets/images/wrong.png';
-  final _pronunciationExceptions = {
-    "orang": ["o", "rang"],
-    "kursi": ["kur", "si"],
-    "payung": ["pa", "yung"],
-    "sepeda": ["se", "pe", "da"],
-    "motor": ["mo", "tor"],
-    "pesawat": ["pe", "sa", "wat"],
-    "kereta": ["ke", "re", "ta"],
-    "lampu lalu lintas": ["lam", "pu", "la", "lu", "lin", "tas"],
-    "hidran": ["hi", "dran"],
-    "zebra": ["ze", "bra"],
-    "jerapah": ["je", "ra", "pah"],
-    "frisbi": ["fris", "bi"],
-    "wortel": ["wor", "tel"],
-    "laptop": ["lap", "top"],
-    "microwave": ["mi", "cro", "wave"],
-    "kulkas": ["kul", "kas"],
-    "remote": ["re", "mo", "te"],
-    "keyboard": ["key", "board"],
-    "pemanggang": ["pe", "mang", "gang"],
-    "wastafel": ["was", "ta", "fel"],
-    "televisi": ["te", "le", "vi", "si"],
-    "sandwich": ["sand", "wich"],
-    "pizza": ["pit", "za"],
-    "donat": ["do", "nat"],
-    "boneka beruang": ["bo", "ne", "ka", "be", "ru", "ang"],
-    "pengering rambut": ["pe", "nge", "ring", "ram", "but"],
-  };
 
   @override
   void onInit() {
     super.onInit();
-     
-     // Cek apakah ada instruksi yang dikirim dari history
     if (Get.arguments != null && Get.arguments is String) {
       instruksi.value = Get.arguments as String;
       targetObject.value = _extractTargetObject(instruksi.value);
     }
-    
     _initializeServices();
+  }
+
+  String _extractTargetObject(String instruksi) {
+    return instruksi.replaceAll('"', '').replaceAll('AYO TEMUKAN ', '').trim();
   }
 
   Future<void> _initializeServices() async {
     await _configureTts();
     await _initializeSpeech();
-
-    if (Get.arguments != null && Get.arguments is String) {
-      instruksi.value = Get.arguments;
-      targetObject.value = _extractTargetObject(instruksi.value);
-    }
-
     await _initializeCamera();
-    await _speakInitialInstruction(); // 1. Bicara instruksi awal
-    _startCountdown(); // 2. Mulai timer setelah selesai bicara
-    _startDetection(); // 3. Mulai deteksi objek
-  }
-
-  String _extractTargetObject(String instruksi) {
-    return instruksi.replaceAll('"', '').replaceAll('AYO TEMUKAN ', '').trim();
+    await _speakInitialInstruction();
   }
 
   Future<void> _configureTts() async {
@@ -113,53 +80,83 @@ class CariObjekController extends GetxController {
       cameraController = CameraController(cameras[0], ResolutionPreset.medium);
       await cameraController.initialize();
       isCameraInitialized.value = true;
-
-      _detectionTimer = Timer.periodic(Duration(seconds: 3), (_) {
-        if (!isSpeaking.value && countdown.value > 0) {
-          _detectObjectInFrame();
-        }
-      });
     } catch (e) {
       Get.snackbar("Error", "Gagal menginisialisasi kamera");
     }
   }
 
+  Future<void> _speakInitialInstruction() async {
+    for (int i = 0; i < 3; i++) {
+      await _tts.speak("Ayo cari ${targetObject.value}");
+      await Future.delayed(const Duration(milliseconds: 1500));
+    }
+
+    // Tampilkan dialog konfirmasi setelah instruksi
+    Get.dialog(_buildConfirmationDialog(), barrierDismissible: false);
+  }
+
+  Widget _buildConfirmationDialog() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset('assets/images/ready.png', width: 100, height: 100),
+            const SizedBox(height: 15),
+            Text(
+              "Cari ${targetObject.value} dan arahkan ke kamera untuk berlatih berbicara",
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Get.back();
+                isReady.value = true;
+                _startCountdown();
+                _startImageStream();
+                // Suara tambahan setelah klik tombol
+                _tts.speak("Ayo mulai cari ${targetObject.value}!");
+              },
+              child: const Text("Siap! Mulai"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _startImageStream() {
+    cameraController.startImageStream((image) {
+      if (isReady.value &&
+          !isSpeaking.value &&
+          countdown.value > 0 &&
+          !hasFoundObject.value) {
+        _throttler.call(() => _detectObjectInFrame(image));
+      }
+    });
+  }
+
   void _startCountdown() {
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
-      if (countdown.value > 0) {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (countdown.value > 0)
         countdown.value--;
-      } else {
+      else {
         _handleTimeout();
         timer.cancel();
       }
     });
   }
 
-  Future<void> _speakInitialInstruction() async {
-    for (int i = 0; i < 3; i++) {
-      await _tts.speak("Ayo cari ${targetObject.value}");
-      // Tunggu sampai selesai bicara + jeda 1.5 detik
-      await Future.delayed(Duration(milliseconds: 1500));
-    }
-    // Beri instruksi setelah 3x pengulangan
-    await _tts.speak(
-      "Cari ${targetObject.value} di sekitarmu dan arahkan kamera!",
-    );
-  }
-
-  void _startDetection() {
-    _detectionTimer = Timer.periodic(Duration(seconds: 3), (_) {
-      if (!isSpeaking.value && countdown.value > 0) {
-        _detectObjectInFrame();
-      }
-    });
-  }
-
-  Future<void> _detectObjectInFrame() async {
+  Future<void> _detectObjectInFrame(CameraImage image) async {
     try {
-      final image = await cameraController.takePicture();
-      final imageBytes = await image.readAsBytes();
-
+      final imageBytes = convertYUV420ToImage(image);
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.detect}'),
         headers: {'Content-Type': 'application/octet-stream'},
@@ -171,13 +168,17 @@ class CariObjekController extends GetxController {
         final detectedLabels = List<String>.from(result['detected']);
 
         if (detectedLabels.isNotEmpty) {
-          final closestObject = _getClosestObject(detectedLabels);
+          final closestObject = detectedLabels.first;
           detectedObject.value = closestObject;
 
           if (closestObject.toLowerCase() == targetObject.value.toLowerCase()) {
-            await _handleObjectFound(); // Object benar
+            // Hentikan semua proses deteksi
+            cameraController.stopImageStream();
+            await _handleObjectFound();
           } else {
-            await _handleWrongObject(closestObject); // Object salah
+            // Hentikan sementara deteksi
+            cameraController.stopImageStream();
+            await _handleWrongObject(closestObject);
           }
         }
       }
@@ -187,67 +188,43 @@ class CariObjekController extends GetxController {
   }
 
   Future<void> _handleObjectFound() async {
-    _detectionTimer?.cancel();
+    hasFoundObject.value = true;
     _countdownTimer?.cancel();
-  Get.dialog(
-    Center(
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.5, end: 1.5),
-        duration: const Duration(milliseconds: 500),
-        builder: (context, value, child) {
-          return Transform.scale(
-            scale: value,
-            child: Icon(
-              Icons.check_circle,
-              color: Colors.green,
-              size: 150,
-            ),
-          );
-        },
-        onEnd: () {
-          Get.back();
-        },
-      ),
-    ),
-    barrierColor: Colors.black.withOpacity(0.6),
-  );
-    // Beri feedback suara
+
+    // Tampilkan notifikasi benar
+    Get.dialog(_buildCorrectDialog(), barrierDismissible: false);
+
+    // Feedback suara langsung
     await _tts.speak("Hore! Kamu berhasil menemukan ${targetObject.value}");
-    await _tts.speak("Sekarang coba ucapkan nama benda tersebut");
+    await Future.delayed(const Duration(seconds: 2));
 
-    _startListening();
-    // Simpan riwayat aktivitas
-  final activityController = Get.find<ActivityController>();
-  activityController.addHistory(ActivityHistory(
-    id: '',
-    title: "Mencari ${targetObject.value}",
-    image: _getImageForObject(targetObject.value),
-    date: DateTime.now(),
-    isCompleted: true,
-    instruksi: instruksi.value
-  ));
+    // Tutup dialog setelah 2 detik
+    Get.back();
+
+    // Lanjutkan ke proses spelling
+    _speechQueue.add("Sekarang coba ucapkan nama benda tersebut");
+    if (!isSpeaking.value) await _processQueue();
+
+    // Simpan riwayat
+    final activityController = Get.put(ActivityController());
+    activityController.addHistory(
+      ActivityHistory(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: "Mencari ${targetObject.value}",
+        image: _getImageForObject(targetObject.value),
+        date: DateTime.now(),
+        isCompleted: true,
+        instruksi: instruksi.value,
+        points: 0,
+      ),
+    );
   }
 
-  String _getClosestObject(List<String> objects) {
-    return objects.first;
-  }
-
-  Future<void> _handleWrongObject(String detectedName) async {
-  // Hentikan semua ucapan sebelumnya
-  await _tts.stop();
-  
-  // Beri feedback lebih informatif
-  await _tts.speak("Belum tepat");
-  await Future.delayed(const Duration(milliseconds: 500));
-  await _tts.speak("Ini $detectedName");
-  await Future.delayed(const Duration(milliseconds: 1000));
-  await _tts.speak("Sekarang coba cari ${targetObject.value} ya");
-  
-  // Tambahkan animasi visual
-  Get.dialog(
-    Center(
+  Widget _buildCorrectDialog() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
+        tween: Tween(begin: 0.5, end: 1.0),
         duration: const Duration(milliseconds: 500),
         builder: (context, value, child) {
           return Transform.scale(
@@ -261,156 +238,137 @@ class CariObjekController extends GetxController {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset(
-                    'assets/images/wrong.png',
-                    width: 80,
-                    height: 80,
-                  ),
+                  Image.asset(correctImage, width: 150, height: 150),
                   const SizedBox(height: 15),
                   Text(
-                    "Salah!",
+                    "Benar!",
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.red[700],
+                      color: Colors.green,
                     ),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    "Ini $detectedName\nCari ${targetObject.value}",
+                    "Kamu menemukan ${targetObject.value}",
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 18),
                   ),
                 ],
               ),
             ),
           );
         },
-        onEnd: () {
-          Future.delayed(const Duration(seconds: 3), () => Get.back());
+      ),
+    );
+  }
+
+  Future<void> _handleWrongObject(String detectedName) async {
+    // Tampilkan notifikasi salah
+    Get.dialog(_buildWrongDialog(detectedName), barrierDismissible: false);
+
+    // Feedback suara langsung
+    await _tts.speak("Belum tepat!");
+    await _tts.speak("Ini $detectedName");
+    await _tts.speak("Bukan ${targetObject.value}");
+
+    // Tunggu 3 detik sebelum melanjutkan deteksi
+    await Future.delayed(const Duration(seconds: 3));
+    Get.back();
+
+    // Lanjutkan deteksi
+    if (!hasFoundObject.value && countdown.value > 0) {
+      cameraController.startImageStream((image) {
+        if (isReady.value &&
+            !isSpeaking.value &&
+            countdown.value > 0 &&
+            !hasFoundObject.value) {
+          _throttler.call(() => _detectObjectInFrame(image));
+        }
+      });
+    }
+  }
+
+  Widget _buildWrongDialog(String detectedName) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.5, end: 1.0),
+        duration: const Duration(milliseconds: 500),
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: value,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(wrongImage, width: 150, height: 150),
+                  const SizedBox(height: 15),
+                  Text(
+                    "Belum Tepat!",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Ini $detectedName\nBukan ${targetObject.value}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ],
+              ),
+            ),
+          );
         },
       ),
-    ),
-    barrierColor: Colors.black.withOpacity(0.5),
-  );
-}
-
-  Future<void> speakDetectedObject(String object) async {
-    _speechQueue.add(object);
-    if (!isSpeaking.value) {
-      await _processQueue();
-    }
+    );
   }
 
   Future<void> _processQueue() async {
     while (_speechQueue.isNotEmpty) {
       isSpeaking.value = true;
-      final object = _speechQueue.removeAt(0);
+      final text = _speechQueue.removeAt(0);
 
-      for (int i = 0; i < 3; i++) {
-        await _speechWithPause("Ini adalah", pause: 1000);
-        await _speechWithPause(object, pause: 1500);
-        await _spellWord(object);
-        await Future.delayed(Duration(milliseconds: 2000));
-      }
-
-      if (_speechQueue.isEmpty) {
-        await _speechWithPause("Sekarang", pause: 1000);
-        await _speechWithPause("coba kamu ucapkan", pause: 800);
-        await _speechWithPause(object, pause: 1500);
+      if (text == "Sekarang coba ucapkan nama benda tersebut") {
+        // Langsung ke instruksi tanpa spelling
+        await _tts.speak(text);
+        await Future.delayed(const Duration(milliseconds: 1000));
+        _startListening();
+      } else {
+        // Untuk spelling jika diperlukan
+        await _tts.speak(text);
+        await Future.delayed(const Duration(milliseconds: 1000));
       }
     }
     isSpeaking.value = false;
   }
 
-  Future<void> _spellWord(String word) async {
-    final syllables = _splitIntoSyllables(word);
-
-    await _speechWithPause(" ", pause: 1000);
-
-    for (int i = 0; i < syllables.length; i++) {
-      await _tts.setSpeechRate(0.3);
-      await _speechWithPause(syllables[i], pause: 800);
-      await _tts.setSpeechRate(0.4);
-
-      if (i < syllables.length - 1) {
-        await Future.delayed(Duration(milliseconds: 1000));
-      }
-    }
-  }
-
-  List<String> _splitIntoSyllables(String word) {
-    if (_pronunciationExceptions.containsKey(word)) {
-      return _pronunciationExceptions[word]!;
-    }
-
-    List<String> syllables = [];
-    String currentSyllable = '';
-    bool lastWasVowel = false;
-
-    for (int i = 0; i < word.length; i++) {
-      final char = word[i].toLowerCase();
-      final isVowel = _isVowel(char);
-
-      if (!isVowel && i > 0 && !lastWasVowel) {
-        if (i + 1 < word.length && !_isVowel(word[i + 1])) {
-          syllables.add(currentSyllable);
-          currentSyllable = char;
-          continue;
-        } else if (currentSyllable.isNotEmpty) {
-          syllables.add(currentSyllable);
-          currentSyllable = char;
-          continue;
-        }
-      }
-
-      currentSyllable += char;
-      lastWasVowel = isVowel;
-
-      if (i == word.length - 1) {
-        syllables.add(currentSyllable);
-      } else if (isVowel && !_isVowel(word[i + 1])) {
-        syllables.add(currentSyllable);
-        currentSyllable = '';
-        lastWasVowel = false;
-      }
-    }
-
-    return syllables.isNotEmpty ? syllables : [word];
-  }
-
-  bool _isVowel(String char) {
-    return ['a', 'i', 'u', 'e', 'o'].contains(char.toLowerCase());
-  }
-
-  Future<void> _speechWithPause(String text, {int pause = 300}) async {
-    await _tts.speak(text);
-    await Future.delayed(Duration(milliseconds: pause));
-  }
-
   Future<void> _startListening() async {
-    bool available = await _speech.initialize();
-    if (available) {
+    if (await _speech.initialize()) {
       isListening.value = true;
       _speech.listen(
         onResult: (result) => recognizedText.value = result.recognizedWords,
         localeId: "id_ID",
-        listenFor: Duration(seconds: 5),
-        onSoundLevelChange: (level) {
-          // Untuk visualisasi level suara (opsional)
-        },
+        listenFor: const Duration(seconds: 5),
       );
     }
   }
 
-  Future<void> toggleRecording() async {
+  void toggleRecording() {
     if (isListening.value) {
       _speech.stop();
       isListening.value = false;
       _checkSpeechMatch();
-    } else {
-      if (targetObject.value.isEmpty) return;
-      await _startListening();
+    } else if (hasFoundObject.value) {
+      _startListening();
     }
   }
 
@@ -421,155 +379,133 @@ class CariObjekController extends GetxController {
     await _tts.stop();
 
     if (input == target) {
-      await _speechWithPause("Hore! Pelafalanmu tepat!", pause: 500);
-      await _speechWithPause("Kamu hebat!", pause: 300);
+      await _tts.speak("Hore! Pelafalanmu tepat!");
+      await _tts.speak("Kamu hebat!");
       Get.offAllNamed(Routes.HOME);
     } else {
-      await _speechWithPause("Pelafalanmu belum tepat", pause: 500);
-      await _speechWithPause("Ayo coba ucapkan lagi", pause: 300);
+      await _tts.speak("Pelafalanmu belum tepat");
+      await _tts.speak("Ayo coba ucapkan lagi");
       recognizedText.value = '';
       _startListening();
     }
   }
 
   void _handleTimeout() {
-    _detectionTimer?.cancel();
-    _countdownTimer?.cancel();
-    
-    Get.dialog(
-       _buildTimeoutDialog(), // Ganti dengan custom dialog
-    barrierDismissible: false,
-  );
-  
-  _tts.speak("Waktu sudah habis, jangan menyerah ya! Coba lagi lain kali");
-   final activityController = Get.find<ActivityController>();
-  activityController.addHistory(ActivityHistory(
-    id: DateTime.now().millisecondsSinceEpoch.toString(),
-    title: "Mencari ${targetObject.value}",
-    image: _getImageForObject(targetObject.value),
-    date: DateTime.now(),
-    isCompleted: false,
-    instruksi: instruksi.value,
-  ));
-}
-String _getImageForObject(String object) {
-  final objectImages = {
-    "BOLA": 'assets/images/f2.cariobjek/1.png',
-    "BOTOL": 'assets/images/f2.cariobjek/2.png',
-    "KURSI": 'assets/images/f2.cariobjek/3.png',
-    "TEMPAT TIDUR": 'assets/images/f2.cariobjek/5.png',
-    "TAS": 'assets/images/f2.cariobjek/6.png',
-    "TELEVISI": 'assets/images/f2.cariobjek/4.png',
-  };
-  
-  return objectImages[object] ?? 'assets/images/defaulthistory.png';
-}
-Widget _buildTimeoutDialog() {
-  return Dialog(
-    backgroundColor: Colors.transparent,
-    insetPadding: const EdgeInsets.all(30),
-    child: Container(
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 15,
-            spreadRadius: 3,
-          )
-        ],
+    hasFoundObject.value = false;
+    cameraController.stopImageStream();
+
+    Get.dialog(_buildTimeoutDialog(), barrierDismissible: false);
+
+    _tts.speak("Waktu sudah habis, jangan menyerah ya! Coba lagi lain kali");
+
+    final activityController = Get.put(ActivityController());
+    activityController.addHistory(
+      ActivityHistory(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: "Mencari ${targetObject.value}",
+        image: _getImageForObject(targetObject.value),
+        date: DateTime.now(),
+        isCompleted: false,
+        instruksi: instruksi.value,
+        points: 0,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Animasi crying image
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.elasticOut,
-            builder: (context, value, child) {
-              return Transform.scale(
-                scale: value,
-                child: Image.asset(
-                  'assets/images/crying.png', // Pastikan path ini benar
-                  width: 180,
-                  height: 180,
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          Text(
-            "Waktu Habis!",
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.red[700],
+    );
+  }
+
+  String _getImageForObject(String object) {
+    final objectImages = {
+      "BOLA": 'assets/images/f2.cariobjek/1.png',
+      "BOTOL": 'assets/images/f2.cariobjek/2.png',
+      "KURSI": 'assets/images/f2.cariobjek/3.png',
+      "TEMPAT TIDUR": 'assets/images/f2.cariobjek/5.png',
+      "TAS": 'assets/images/f2.cariobjek/6.png',
+      "TELEVISI": 'assets/images/f2.cariobjek/4.png',
+      "LAPTOP": 'assets/images/f2.cariobjek/7.png',
+      "KEYBOARD": 'assets/images/f2.cariobjek/8.png',
+      "BONEKA": 'assets/images/f2.cariobjek/9.png',
+    };
+    return objectImages[object] ?? 'assets/images/defaulthistory.png';
+  }
+
+  Widget _buildTimeoutDialog() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.all(25),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Image.asset(
+                    'assets/images/crying.png',
+                    width: 180,
+                    height: 180,
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 15),
-          const Text(
-            "Yah, waktu sudah habis.\nJangan menyerah, coba lagi ya!",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18, height: 1.4),
-          ),
-          const SizedBox(height: 25),
-          ElevatedButton(
-            onPressed: () {
-              Get.back();
-              Get.offAllNamed(Routes.CARIOBJEK);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-            ),
-            child: const Text(
-              "COBA LAGI",
+            const SizedBox(height: 20),
+            Text(
+              "Waktu Habis!",
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: Colors.red[700],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 15),
+            const Text(
+              "Yah, waktu sudah habis.\nJangan menyerah, coba lagi ya!",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, height: 1.4),
+            ),
+            const SizedBox(height: 25),
+            ElevatedButton(
+              onPressed: () {
+                Get.back();
+                Get.offAllNamed(Routes.CARIOBJEK);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 15,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+              ),
+              child: const Text(
+                "COBA LAGI",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   @override
   void onClose() {
-  // Hentikan semua timer
-  _detectionTimer?.cancel();
-  _countdownTimer?.cancel();
-  
-  // Hentikan TTS dan semua antrian suara
-  _tts.stop();
-  _speechQueue.clear();
-  isSpeaking.value = false;
-  
-  // Hentikan speech recognition
-  if (_speech.isListening) {
-    _speech.stop();
-  }
-  isListening.value = false;
-  
-  // Lepas resource kamera
-  if (isCameraInitialized.value) {
+    _countdownTimer?.cancel();
+    _tts.stop();
+    _speechQueue.clear();
     cameraController.dispose();
+    if (_speech.isListening) _speech.stop();
+    super.onClose();
   }
-  
-  // Reset semua state
-  countdown.value = 20;
-  recognizedText.value = '';
-  isProcessingSpeech.value = false;
-  
-  super.onClose();
-}
 }

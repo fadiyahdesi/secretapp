@@ -9,6 +9,7 @@ class LoginView extends GetView<LoginController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -62,7 +63,10 @@ class LoginView extends GetView<LoginController> {
                     onTap: () => Get.toNamed(Routes.REGISTER),
                     child: const Text(
                       "Daftar disini!",
-                      style: TextStyle(color: Colors.purple),
+                      style: TextStyle(
+                        color: Colors.purple,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   GestureDetector(

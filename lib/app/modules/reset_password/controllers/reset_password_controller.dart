@@ -1,38 +1,37 @@
+import 'dart:convert';
+import 'package:bicaraku/app/routes/app_routes.dart';
 import 'package:bicaraku/core/network/api_constant.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class ResetPasswordController extends GetxController {
   final emailController = TextEditingController();
-  var isLoading = false.obs;
+  final isLoading = false.obs;
 
-  // ResetPasswordController (sendResetLink)
-  Future<void> sendResetLink() async {
+  Future<void> sendResetCode() async {
     final email = emailController.text.trim();
     if (email.isEmpty) {
       Get.snackbar("Error", "Email tidak boleh kosong");
       return;
     }
+
     isLoading.value = true;
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.resetpassword}'),
+        Uri.parse('${ApiConstants.baseUrl}/api/reset-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );
-      final body = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && body['status'] == 'success') {
-        Get.snackbar("Sukses", "Cek email untuk verifikasi dulu");
-        // Pindah ke CreatePasswordView dengan membawa email
-        Get.toNamed('/create-password', parameters: {'email': email});
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        Get.toNamed(Routes.VERIFY_CODE, arguments: {'email': email});
       } else {
-        Get.snackbar("Gagal", body['message'] ?? 'Terjadi kesalahan');
+        Get.snackbar("Gagal", data['message']);
       }
     } catch (e) {
-      Get.snackbar("Error", "Terjadi kesalahan: ${e.toString()}");
+      Get.snackbar("Error", "Terjadi kesalahan saat mengirim kode");
     } finally {
       isLoading.value = false;
     }

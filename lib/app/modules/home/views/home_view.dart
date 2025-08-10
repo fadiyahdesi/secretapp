@@ -1,77 +1,72 @@
+import 'package:bicaraku/app/data/controllers/activity_controller.dart';
+import 'package:bicaraku/app/data/controllers/total_points_controller.dart';
+import 'package:bicaraku/app/data/controllers/user_controller.dart';
+import 'package:bicaraku/app/data/models/activity_history.dart';
 import 'package:bicaraku/app/routes/app_routes.dart';
 import 'package:bicaraku/core/widgets/custom_bottom_nav.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:bicaraku/app/data/controllers/user_controller.dart';
-import 'package:bicaraku/app/data/controllers/activity_controller.dart';
-import 'package:bicaraku/app/data/models/activity_history.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart' as intl;
 
+// Mengubah menjadi StatelessWidget karena GetX sudah mengelola state. Lebih ringkas & efisien.
 class HomeView extends StatelessWidget {
   const HomeView({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    initializeDateFormatting('id_ID', null);
+    final UserController userController = Get.find<UserController>();
+    final ActivityController activityController = Get.put(ActivityController());
+    final TotalPointsController pointsController = Get.put(
+      TotalPointsController(),
+    );
 
-    final userController = Get.find<UserController>();
-    final activityController = Get.put(ActivityController());
-
-    //muat ulang saat halaman dibuka
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      activityController.loadHistories();
-    });
-
-    // Cek argument untuk set user name
-    if (Get.arguments != null && Get.arguments['name'] != null) {
-      userController.setUser(Get.arguments['name']);
-    }
     return Scaffold(
+      backgroundColor: Colors.white,
       bottomNavigationBar: const CustomBottomNav(),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: ListView(
             children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Obx(
-                    () => Text(
+              Obx(
+                () => Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
                       'Halo, ${userController.userRx.value?.name ?? ''}!',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      const Text(
-                        '10 Poin',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                    Row(
+                      children: [
+                        // Text poin juga reaktif
+                        Text(
+                          '${pointsController.totalPoints.value} Poin',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        iconSize: 32,
-                        icon: const Icon(
-                          Icons.person,
-                          color: Colors.purpleAccent,
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.person,
+                            size: 30.0,
+                            color: Colors.purpleAccent,
+                          ),
+                          onPressed: () {
+                            Get.toNamed(Routes.PROFIL);
+                          },
                         ),
-                        onPressed: () {
-                          Get.toNamed('/profil');
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
 
+              // --- AKHIR DARI KODE HEADER YANG DIPERBAIKI ---
               const SizedBox(height: 16),
 
               // Banner edukasi
@@ -105,7 +100,7 @@ class HomeView extends StatelessWidget {
               const SizedBox(height: 12),
               GestureDetector(
                 onTap: () {
-                  Get.toNamed('/scraping');
+                  Get.toNamed(Routes.SCRAPING);
                 },
                 child: _buildActivityCard('assets/images/scraping.jpg'),
               ),
@@ -136,12 +131,20 @@ class HomeView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Obx(() {
+                if (activityController.isLoading.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
                 if (activityController.histories.isEmpty) {
                   return _buildEmptyActivity();
                 }
+
+                final histories = [...activityController.histories];
+                histories.sort((a, b) => b.date.compareTo(a.date));
+
                 return Column(
                   children: [
-                    for (var history in activityController.histories.take(3))
+                    for (var history in histories.take(3))
                       _buildHistoryCard(history),
                   ],
                 );
@@ -153,8 +156,8 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  // Widget untuk card aktivitas
-  static Widget _buildActivityCard(String imagePath) {
+  // Helper methods, bisa tetap di sini atau dipindah ke file terpisah
+  Widget _buildActivityCard(String imagePath) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Image.asset(imagePath, fit: BoxFit.cover),
@@ -179,7 +182,7 @@ class HomeView extends StatelessWidget {
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
-              Get.toNamed('/cariobjek');
+              Get.toNamed(Routes.CARIOBJEK);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
@@ -193,6 +196,7 @@ class HomeView extends StatelessWidget {
   }
 
   Widget _buildHistoryCard(ActivityHistory history) {
+    final formatter = intl.DateFormat('EEEE, d MMMM y', 'id_ID');
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -228,18 +232,14 @@ class HomeView extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      if (history.isCompleted)
-                        const Icon(
-                          Icons.check_circle,
-                          color: Colors.green,
-                          size: 16,
-                        ),
-                      if (!history.isCompleted)
-                        const Icon(
-                          Icons.access_time,
-                          color: Colors.orange,
-                          size: 16,
-                        ),
+                      Icon(
+                        history.isCompleted
+                            ? Icons.check_circle
+                            : Icons.access_time,
+                        color:
+                            history.isCompleted ? Colors.green : Colors.orange,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -249,11 +249,29 @@ class HomeView extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (history.points > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '+${history.points} Poin',
+                            style: TextStyle(
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _formatDate(history.date),
+                    '${formatter.format(history.date)} • ${intl.DateFormat.Hm().format(history.date)}',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -265,10 +283,5 @@ class HomeView extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final formatter = intl.DateFormat('EEEE, d MMMM y', 'id_ID');
-    return '${formatter.format(date)} • ${intl.DateFormat.Hm().format(date)}';
   }
 }

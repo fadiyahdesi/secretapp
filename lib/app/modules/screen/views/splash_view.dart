@@ -22,11 +22,11 @@ class _SplashState extends State<SplashView> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Gambar Splash
             SizedBox(
               width: 300, // Atur ukuran gambar di sini
               height: 300,
@@ -37,8 +37,10 @@ class _SplashState extends State<SplashView> {
             ),
             SizedBox(height: 24), // Jarak antara gambar dan loading
             // Loading Indicator
-            CircularProgressIndicator(color: Color.fromARGB(255, 201, 71, 224),
-  strokeWidth: 2),
+            CircularProgressIndicator(
+              color: Color.fromARGB(255, 201, 71, 224),
+              strokeWidth: 2,
+            ),
           ],
         ),
       ),

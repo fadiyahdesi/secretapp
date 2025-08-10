@@ -136,10 +136,8 @@ class ProfilController extends GetxController {
       if (response.statusCode == 200) {
         Get.snackbar("Sukses", "Profil berhasil diperbarui");
 
-        /// ⬇️ Refresh data agar nama/email langsung diupdate di UI
         await fetchUserProfile();
 
-        /// Kosongkan input password
         passwordController.clear();
       } else {
         final error =

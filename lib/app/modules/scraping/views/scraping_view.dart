@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'package:bicaraku/app/modules/f1_looknhear/controllers/looknhear_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:bicaraku/core/widgets/custom_bottom_nav.dart';
+// import 'package:bicaraku/core/widgets/custom_bottom_nav.dart';
 
 const List<String> stopWords = [
   'yang',
@@ -48,15 +50,53 @@ class ScrapingView extends StatefulWidget {
 }
 
 class _ScrapingViewState extends State<ScrapingView> {
+  int _selectedTabIndex = 0; // Changed to 0 for Riwayat Belajar
   bool showVisualization = true;
   List<dynamic> articles = [];
   Map<String, dynamic> keywords = {};
   bool isLoading = true;
 
+  final LooknhearController looknhearController = Get.put(
+    LooknhearController(),
+  );
+
   @override
   void initState() {
     super.initState();
     fetchScrapingData();
+  }
+
+  Widget buildTabButton(int index, String title, Color? activeColor) {
+    final bool isSelected = _selectedTabIndex == index;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: SizedBox(
+        width: 110,
+        child: ElevatedButton(
+          onPressed: () {
+            setState(() {
+              _selectedTabIndex = index;
+            });
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isSelected ? activeColor : Colors.grey[300],
+            foregroundColor: isSelected ? Colors.white : Colors.black,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            elevation: isSelected ? 4 : 0,
+            shadowColor: isSelected ? activeColor : Colors.transparent,
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> fetchScrapingData() async {
@@ -212,9 +252,9 @@ class _ScrapingViewState extends State<ScrapingView> {
     if (data.isEmpty) return const Text("Tidak ada data artikel.");
 
     final Map<String, Color> sourceColors = {
-      "Haibunda": Color.fromARGB(255, 255, 155, 74),
+      "Haibunda": const Color.fromARGB(255, 255, 155, 74),
       "Wikipedia": Colors.purpleAccent,
-      "Hellosehat": Color.fromARGB(255, 255, 241, 51),
+      "Hellosehat": const Color.fromARGB(255, 255, 241, 51),
     };
 
     return SizedBox(
@@ -352,89 +392,349 @@ class _ScrapingViewState extends State<ScrapingView> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      bottomNavigationBar: const CustomBottomNav(),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              top: 70,
-              child:
-                  isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : showVisualization
-                      ? buildVisualizationView()
-                      : buildArticleView(),
-            ),
+  // ===== TAMBAHKAN METHOD UNTUK RIWAYAT BELAJAR =====
+  Widget buildLearningHistoryView() {
+    return Obx(() {
+      if (looknhearController.isLoadingHistory.value) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-            Positioned(
-              top: 16,
-              left: 8,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Get.back(),
+      if (looknhearController.learningHistory.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/emptyhistory.png',
+                width: 180,
+                height: 180,
               ),
-            ),
+              const SizedBox(height: 20),
+              const Text(
+                'Belum ada riwayat belajar',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color.fromARGB(179, 0, 0, 0),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Get.toNamed("/looknhear");
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.pinkAccent[100],
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                ),
+                child: const Text('Mulai Belajar'),
+              ),
+            ],
+          ),
+        );
+      }
 
-            Positioned(
-              top: 16,
-              left: 0,
-              right: 0,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+      return Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  'Objek Paling Sering Dipelajari',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromARGB(255, 0, 0, 0),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildBarChartForLearningHistory(),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          showVisualization = true;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            showVisualization
-                                ? Colors.purple[300]
-                                : Colors.grey[400],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Visualisasi',
-                        style: TextStyle(color: Colors.white),
+                    const Text(
+                      'Riwayat Belajar',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color.fromARGB(255, 0, 0, 0),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          showVisualization = false;
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            !showVisualization
-                                ? Colors.yellow[300]
-                                : Colors.grey[300],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Artikel',
-                        style: TextStyle(color: Colors.black),
+                    Text(
+                      'Total: ${looknhearController.learningHistory.length}',
+                      style: const TextStyle(
+                        color: Color.fromARGB(179, 0, 0, 0),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                _buildHistoryList(),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  // Remove _showClearHistoryDialog from here, it's handled by controller now
+
+  Widget _buildBarChartForLearningHistory() {
+    final items = looknhearController.mostDetectedObjects.entries.toList();
+    if (items.isEmpty) {
+      return const Center(
+        child: Text(
+          "Belum ada riwayat belajar",
+          style: TextStyle(color: Color.fromARGB(179, 0, 0, 0)),
+        ),
+      );
+    }
+    items.sort((a, b) => b.value.compareTo(a.value));
+    final max = items.first.value.toDouble();
+
+    final List<Color> barColors = [
+      Colors.pinkAccent.shade100,
+      Colors.blueAccent.shade100,
+      Colors.greenAccent.shade100,
+      Colors.amberAccent.shade100,
+      Colors.purpleAccent.shade100,
+      Colors.cyanAccent.shade100,
+      Colors.deepOrangeAccent.shade100,
+      Colors.limeAccent.shade100,
+      Colors.indigoAccent.shade100,
+      Colors.tealAccent.shade100,
+    ];
+
+    return Container(
+      height: 260,
+      padding: const EdgeInsets.only(top: 16, bottom: 24),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children:
+                items.asMap().entries.map((entryWithIndex) {
+                  final index = entryWithIndex.key;
+                  final entry = entryWithIndex.value;
+                  final heightPercent = entry.value / max;
+                  final color = barColors[index % barColors.length];
+                  final objectName = entry.key;
+                  final count = entry.value;
+
+                  return Container(
+                    width: 70,
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          '$count',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color.fromARGB(179, 126, 126, 126),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          height: 150 * heightPercent,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              topRight: Radius.circular(8),
+                            ),
+                            gradient: LinearGradient(
+                              colors: [color, color.withOpacity(0.7)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withOpacity(0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 6,
+                          ),
+                          child: Text(
+                            objectName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color.fromARGB(255, 18, 18, 18),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryList() {
+    return Obx(() {
+      return ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: looknhearController.learningHistory.length,
+        itemBuilder: (context, index) {
+          final entry = looknhearController.learningHistory[index];
+          DateTime date;
+          try {
+            date = entry.timestamp; // Gunakan langsung dari model
+          } catch (e) {
+            date = DateTime.now();
+          }
+
+          return Dismissible(
+            key: Key(entry.id), // Gunakan ID dari model sebagai key
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (direction) async {
+              // Dialog konfirmasi sekarang ditangani di controller removeHistoryItem
+              return looknhearController.removeHistoryItem(entry.id) != null;
+            },
+            onDismissed: (direction) {
+              // Tidak perlu memanggil removeHistoryItem di sini karena sudah dipanggil di confirmDismiss
+              // Controller akan memperbarui state secara otomatis setelah API response
+            },
+            child: Card(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
+              child: ListTile(
+                title: Text(entry.object),
+                subtitle: Text(
+                  DateFormat('dd/MM/yyyy HH:mm').format(date.toLocal()),
+                ),
+                leading: const Icon(
+                  Icons.history_toggle_off,
+                  color: Colors.blueAccent,
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      // bottomNavigationBar: const CustomBottomNav(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 12,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Get.back(),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Infografis',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 48,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      children: [
+                        buildTabButton(
+                          0,
+                          'Riwayat Belajar',
+                          Colors.pinkAccent[100],
+                        ),
+                        const SizedBox(width: 8),
+                        buildTabButton(1, 'Visualisasi', Colors.purple[300]),
+                        const SizedBox(width: 8),
+                        buildTabButton(2, 'Artikel', Colors.orangeAccent),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child:
+                  isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _selectedTabIndex == 0
+                      ? buildLearningHistoryView()
+                      : _selectedTabIndex == 1
+                      ? buildVisualizationView()
+                      : buildArticleView(),
             ),
           ],
         ),
       ),
+      floatingActionButton: Obx(() {
+        if (_selectedTabIndex == 0 &&
+            looknhearController.learningHistory.isNotEmpty) {
+          return FloatingActionButton.extended(
+            onPressed: () {
+              looknhearController.clearLearningHistory();
+            },
+            label: const Text('Hapus Riwayat'),
+            icon: const Icon(Icons.delete_forever),
+            backgroundColor: Colors.red[400],
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          );
+        } else {
+          return const SizedBox.shrink();
+        }
+      }),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

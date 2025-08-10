@@ -18,8 +18,10 @@ abstract class Routes {
   static const PEOPLESPEAK = _Paths.PEOPLESPEAK;
   static const SCRAPING = _Paths.SCRAPING;
   static const HISTORY = _Paths.HISTORY;
-  static const RESET_PASSWORD = _Paths.RESET_PASSWORD;
   static const HISTORY_ACTIVITY = _Paths.HISTORY_ACTIVITY;
+  static const RESET_PASSWORD = _Paths.RESET_PASSWORD;
+  static const VERIFY_CODE = _Paths.VERIFY_CODE;
+  static const CREATE_PASSWORD = _Paths.CREATE_PASSWORD;
 }
 
 abstract class _Paths {
@@ -39,6 +41,8 @@ abstract class _Paths {
   static const PEOPLESPEAK = '/peoplespeak';
   static const SCRAPING = '/scraping';
   static const HISTORY = '/history';
-  static const RESET_PASSWORD = '/reset-password';
   static const HISTORY_ACTIVITY = '/history-activity';
+  static const RESET_PASSWORD = '/reset-password';
+  static const VERIFY_CODE = '/verify-code';
+  static const CREATE_PASSWORD = '/create-password';
 }

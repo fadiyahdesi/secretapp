@@ -1,7 +1,9 @@
-// lib/data/repositories/auth_repository.dart
+import 'package:bicaraku/app/data/controllers/total_points_controller.dart';
+import 'package:bicaraku/app/data/controllers/user_controller.dart';
+import 'package:bicaraku/app/data/models/user_model.dart';
 import 'package:bicaraku/core/network/api_constant.dart';
 import 'package:bicaraku/core/network/dio_client.dart';
-import 'package:dio/dio.dart';
+import 'package:dio/dio.dart' as dio;
 import 'package:get/get.dart';
 
 class AuthRepository {
@@ -9,20 +11,33 @@ class AuthRepository {
 
   AuthRepository() : _dioClient = Get.find<DioClient>();
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  /// Login dengan email, password, dan deviceInfo
+  Future<Map<String, dynamic>> login(
+    String email,
+    String password,
+    Map<String, dynamic> deviceInfo,
+  ) async {
     try {
       final response = await _dioClient.post(
         ApiConstants.login,
-        data: {'email': email, 'password': password},
+        data: {'email': email, 'password': password, 'device_info': deviceInfo},
       );
-      print("Login Response: ${response.data}");
+
+      // Jika sukses, update UserController & TotalPoints
+      if (response.data['user'] != null) {
+        final user = UserModel.fromJson(response.data['user']);
+        Get.find<UserController>().setUser(user);
+        Get.put(TotalPointsController()).loadTotalPoints();
+      }
+
       return _handleResponse(response);
-    } on DioException catch (e) {
+    } on dio.DioException catch (e) {
       print("Login Error: ${e.response?.data} | ${e.message}");
-    throw _handleError(e);
+      throw _handleError(e);
     }
   }
 
+  /// Register pengguna
   Future<Map<String, dynamic>> register(
     String name,
     String email,
@@ -33,30 +48,41 @@ class AuthRepository {
         ApiConstants.register,
         data: {'name': name, 'email': email, 'password': password},
       );
-
       return _handleResponse(response);
-    } on DioException catch (e) {
+    } on dio.DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+  /// Login dengan Google + device info
+  Future<Map<String, dynamic>> loginWithGoogle(
+    String idToken,
+    Map<String, dynamic> deviceInfo,
+  ) async {
     try {
       final response = await _dioClient.post(
         ApiConstants.googleLogin,
-        data: {'idToken': idToken},
+        data: {'idToken': idToken, 'device_info': deviceInfo},
       );
+
+      if (response.data['user'] != null) {
+        final user = UserModel.fromJson(response.data['user']);
+        Get.find<UserController>().setUser(user);
+        Get.put(TotalPointsController()).loadTotalPoints();
+      }
+
       return _handleResponse(response);
-    } on DioException catch (e) {
+    } on dio.DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  Map<String, dynamic> _handleResponse(response) {
+  /// Cek status code dan return data
+  Map<String, dynamic> _handleResponse(dio.Response response) {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return response.data;
     } else {
-      throw DioException(
+      throw dio.DioException(
         requestOptions: response.requestOptions,
         response: response,
         error: response.data['message'] ?? 'Unknown error occurred',
@@ -64,7 +90,8 @@ class AuthRepository {
     }
   }
 
-  String _handleError(DioException error) {
+  /// Tangani kesalahan network
+  String _handleError(dio.DioException error) {
     final message =
         error.response?.data?['message'] ??
         error.message ??

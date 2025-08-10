@@ -3,8 +3,9 @@ class UserModel {
   final String name;
   final String email;
   final String provider;
-  final String photoUrl;
+  String photoUrl;
   final String lastLogin;
+  int points;
 
   UserModel({
     required this.id,
@@ -13,34 +14,56 @@ class UserModel {
     required this.provider,
     required this.photoUrl,
     required this.lastLogin,
+    this.points = 0,
   });
 
-  /// Factory untuk parsing dari JSON (pastikan semua dipaksa ke String)
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final id =
+        json['_id']?.toString() ??
+        json['user_id']?.toString() ??
+        json['id']?.toString() ??
+        '';
+
+    final name = json['name']?.toString() ?? '';
+    final email = json['email']?.toString() ?? '';
+
+    final rawProvider = json['provider']?.toString().toLowerCase() ?? 'email';
+    final provider = rawProvider.contains('google') ? 'google' : 'email';
+
+    String photoUrl = json['photoUrl']?.toString() ?? '';
+    if (photoUrl.isEmpty) {
+      photoUrl =
+          'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}';
+    }
+
+    final lastLogin =
+        json['lastLogin']?.toString() ?? DateTime.now().toIso8601String();
+
+    final points = json['points'] ?? 0;
+
     return UserModel(
-      id: json['_id']?.toString() ?? '', // biasanya _id dari MongoDB
-      name: json['name']?.toString() ?? '',
-      email: json['email']?.toString() ?? '',
-      provider: json['provider']?.toString() ?? 'email',
-      photoUrl: json['photoUrl']?.toString() ?? '',
-      lastLogin:
-          json['lastLogin']?.toString() ?? DateTime.now().toIso8601String(),
+      id: id,
+      name: name,
+      email: email,
+      provider: provider,
+      photoUrl: photoUrl,
+      lastLogin: lastLogin,
+      points: points,
     );
   }
 
-  /// Untuk konversi ke JSON
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({bool forBackend = true}) {
     return {
-      '_id': id, // sesuaikan dengan nama field dari server
+      forBackend ? 'user_id' : '_id': id,
       'name': name,
       'email': email,
       'provider': provider,
       'photoUrl': photoUrl,
       'lastLogin': lastLogin,
+      'points': points,
     };
   }
 
-  /// Untuk salin user dengan perubahan sebagian
   UserModel copyWith({
     String? id,
     String? name,
@@ -48,6 +71,7 @@ class UserModel {
     String? provider,
     String? photoUrl,
     String? lastLogin,
+    int? points,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -56,6 +80,7 @@ class UserModel {
       provider: provider ?? this.provider,
       photoUrl: photoUrl ?? this.photoUrl,
       lastLogin: lastLogin ?? this.lastLogin,
+      points: points ?? this.points,
     );
   }
 }

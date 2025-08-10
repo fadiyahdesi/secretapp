@@ -7,32 +7,34 @@ import 'package:get/get.dart';
 class LooknhearView extends StatefulWidget {
   const LooknhearView({super.key});
 
- @override
+  @override
   State<LooknhearView> createState() => _LooknhearViewState();
 }
 
 class _LooknhearViewState extends State<LooknhearView> {
-  final userController = Get.find<UserController>();
+  final userController = Get.put(UserController());
   late LooknhearController lookController;
 
   @override
   void initState() {
     super.initState();
-     lookController = Get.put(LooknhearController());
-    
+    lookController = Get.put(LooknhearController());
+
     // Hentikan semua ucapan saat masuk ke halaman utama
     WidgetsBinding.instance.addPostFrameCallback((_) {
       lookController.resetAllSpeech();
     });
   }
-  
+
+  @override
   Widget build(BuildContext context) {
-    final userController = Get.find<UserController>();
+    final userController = Get.put(UserController());
     // Tambahkan pengecekan ARGUMENTS di sini
     if (Get.arguments != null && Get.arguments['name'] != null) {
       userController.setUser(Get.arguments['name']);
     }
     return Scaffold(
+      backgroundColor: Colors.white,
       bottomNavigationBar: const CustomBottomNav(),
       body: SafeArea(
         child: Center(
@@ -53,7 +55,8 @@ class _LooknhearViewState extends State<LooknhearView> {
                   const SizedBox(height: 40),
                   ElevatedButton.icon(
                     onPressed: () {
-                      lookController.speakInitialGuidance();
+                      // FIXED: Corrected method call
+                      lookController.playInitialGuidance();
                       Get.toNamed('/looknhearcam');
                     },
                     icon: const Icon(Icons.play_arrow, color: Colors.black),

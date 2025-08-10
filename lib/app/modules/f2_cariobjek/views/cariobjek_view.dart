@@ -16,6 +16,7 @@ class CariobjekView extends StatelessWidget {
       userController.setUser(Get.arguments['name']);
     }
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -64,6 +65,18 @@ class CariobjekView extends StatelessWidget {
                     buildActivityCard(
                       'assets/images/f2.cariobjek/4.png',
                       '"AYO TEMUKAN TELEVISI"',
+                    ),
+                    buildActivityCard(
+                      'assets/images/f2.cariobjek/7.png',
+                      '"AYO TEMUKAN LAPTOP"',
+                    ),
+                    buildActivityCard(
+                      'assets/images/f2.cariobjek/8.png',
+                      '"AYO TEMUKAN KEYBOARD"',
+                    ),
+                    buildActivityCard(
+                      'assets/images/f2.cariobjek/9.png',
+                      '"AYO TEMUKAN BONEKA"',
                     ),
                   ],
                 ),
